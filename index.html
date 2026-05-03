@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sclass Fitness Coaching Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">S</div>
+        <div>
+          <h1>Sclass Fitness</h1>
+          <p>Elite Coaching System</p>
+        </div>
+      </div>
+      <nav>
+        <button class="nav active" data-tab="dashboard">Dashboard</button>
+        <button class="nav" data-tab="clients">Clients</button>
+        <button class="nav" data-tab="meal">Meal Planner</button>
+        <button class="nav" data-tab="checkins">Check-Ins</button>
+        <button class="nav" data-tab="business">Business</button>
+      </nav>
+      <div class="small-card">
+        <label>Active Client</label>
+        <select id="clientSelect"></select>
+      </div>
+    </aside>
+
+    <main>
+      <section id="dashboard" class="tab active">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Coach Dashboard</p>
+            <h2 id="dashName">Client Overview</h2>
+          </div>
+          <button id="resetDemo" class="ghost">Reset Demo Data</button>
+        </div>
+        <div class="grid four">
+          <div class="card"><span>Current Weight</span><strong id="currentWeight"></strong></div>
+          <div class="card"><span>Goal Weight</span><strong id="goalWeight"></strong></div>
+          <div class="card"><span>Remaining</span><strong id="remainingWeight"></strong></div>
+          <div class="card"><span>Status</span><strong id="goalStatus"></strong></div>
+        </div>
+        <div class="grid two">
+          <div class="panel">
+            <h3>Macro Targets</h3>
+            <div class="macro-row"><span>Calories</span><div><b id="calTarget"></b><em id="calActual"></em></div></div>
+            <div class="bar"><i id="calBar"></i></div>
+            <div class="macro-row"><span>Protein</span><div><b id="proteinTarget"></b><em id="proteinActual"></em></div></div>
+            <div class="bar"><i id="proteinBar"></i></div>
+            <div class="macro-row"><span>Carbs</span><div><b id="carbTarget"></b><em id="carbActual"></em></div></div>
+            <div class="bar"><i id="carbBar"></i></div>
+            <div class="macro-row"><span>Fat</span><div><b id="fatTarget"></b><em id="fatActual"></em></div></div>
+            <div class="bar"><i id="fatBar"></i></div>
+          </div>
+          <div class="panel">
+            <h3>Aggressive Adjustment Engine</h3>
+            <p id="adjustment" class="recommendation"></p>
+            <div class="notes"><b>Health Flags:</b><p id="healthFlags"></p></div>
+            <div class="notes"><b>Coach Notes:</b><p id="coachNotesView"></p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="clients" class="tab">
+        <div class="topbar">
+          <div><p class="eyebrow">Client Manager</p><h2>Add / Edit / Delete Clients</h2></div>
+          <button id="addClient" class="primary">+ Add Client</button>
+        </div>
+        <div class="panel">
+          <div class="form-grid">
+            <label>Name<input id="name" /></label>
+            <label>Age<input id="age" type="number" /></label>
+            <label>Sex<select id="sex"><option>Male</option><option>Female</option></select></label>
+            <label>Height (in)<input id="height" type="number" /></label>
+            <label>Current Weight<input id="weight" type="number" step="0.1" /></label>
+            <label>Goal Weight<input id="goal" type="number" step="0.1" /></label>
+            <label>Activity<select id="activity"><option>Sedentary</option><option>Light</option><option>Moderate</option><option>Active</option><option>Very Active</option></select></label>
+            <label>Goal Type<select id="goalType"><option>Fat Loss</option><option>Maintain</option><option>Lean Bulk</option><option>Muscle Gain</option><option>Recomp</option></select></label>
+            <label>Start Date<input id="startDate" type="date" /></label>
+            <label>Goal Date<input id="goalDate" type="date" /></label>
+          </div>
+          <label>Medical / Health Flags<textarea id="medical"></textarea></label>
+          <label>Coach Notes<textarea id="coachNotes"></textarea></label>
+          <div class="actions"><button id="saveClient" class="primary">Save Client</button><button id="deleteClient" class="danger">Delete Client</button></div>
+        </div>
+      </section>
+
+      <section id="meal" class="tab">
+        <div class="topbar"><div><p class="eyebrow">Meal Planner</p><h2>Live Macro Meal Builder</h2></div><button id="clearMeals" class="ghost">Clear Meals</button></div>
+        <div id="mealPlanner" class="meal-planner"></div>
+      </section>
+
+      <section id="checkins" class="tab">
+        <div class="topbar"><div><p class="eyebrow">Check-Ins</p><h2>Client Progress Tracker</h2></div></div>
+        <div class="panel compact-form">
+          <input id="checkDate" type="date" />
+          <input id="checkWeight" type="number" step="0.1" placeholder="Weight" />
+          <input id="steps" type="number" placeholder="Steps" />
+          <input id="adherence" type="number" placeholder="Adherence %" />
+          <button id="addCheckin" class="primary">Add Check-In</button>
+        </div>
+        <div class="panel"><h3>Weight Trend</h3><div id="trendChart" class="trend"></div><table><thead><tr><th>Date</th><th>Weight</th><th>Steps</th><th>Adherence</th><th></th></tr></thead><tbody id="checkinRows"></tbody></table></div>
+      </section>
+
+      <section id="business" class="tab">
+        <div class="topbar"><div><p class="eyebrow">Business Zone</p><h2>Revenue + Profit Projection</h2></div></div>
+        <div class="panel form-grid">
+          <label>Monthly Client Payment<input id="payment" type="number" value="250" /></label>
+          <label>Software Costs<input id="software" type="number" value="100" /></label>
+          <label>Website Costs<input id="website" type="number" value="50" /></label>
+          <label>Marketing Costs<input id="marketing" type="number" value="250" /></label>
+          <label>Misc Overhead<input id="misc" type="number" value="100" /></label>
+        </div>
+        <div class="grid four"><div class="card"><span>Active Clients</span><strong id="bizClients"></strong></div><div class="card"><span>Monthly Revenue</span><strong id="revenue"></strong></div><div class="card"><span>Profit</span><strong id="profit"></strong></div><div class="card"><span>Yearly Projection</span><strong id="yearly"></strong></div></div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
