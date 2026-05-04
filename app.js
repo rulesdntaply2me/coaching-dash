@@ -24,8 +24,77 @@ function renderClientForm(){let c=client(); ['name','age','sex','height','weight
 function renderDashboard(){let c=client(), t=macroTargets(c), a=mealTotals(c); $('dashName').textContent=c.name; $('currentWeight').textContent=c.weight+' lb'; $('goalWeight').textContent=c.goal+' lb'; let rem=Math.abs(c.weight-c.goal).toFixed(1); $('remainingWeight').textContent=rem+' lb'; let weeks=Math.max(1,(new Date(c.goalDate)-new Date())/6048e5); let req=(Math.abs(c.weight-c.goal)/weeks).toFixed(2); let actual=actualWeekly(c); let status=Math.abs(actual)>=req*.8?'On Track':'Behind'; $('goalStatus').textContent=status; ['cal','protein','carb','fat'].forEach(k=>{let key=k==='carb'?'carbs':k; $(k+'Target').textContent=t[key]+(k==='cal'?' cal':'g'); $(k+'Actual').textContent='actual '+a[key]+(k==='cal'?'':'g'); let pct=Math.min(130,((a[key]||0)/(t[key]||1))*100); let bar=$(k+'Bar'); bar.style.width=pct+'%'; bar.style.background=pct>110||pct<80?'var(--red)':pct>95?'var(--green)':'var(--yellow)'}); $('healthFlags').textContent=c.medical||'None listed'; $('coachNotesView').textContent=c.coachNotes||'No notes yet'; $('adjustment').textContent=adjustmentText(c,req,actual)}
 function actualWeekly(c){let arr=(c.checkins||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date)); if(arr.length<2)return 0; let first=arr[0], last=arr[arr.length-1]; let weeks=Math.max(1,(new Date(last.date)-new Date(first.date))/6048e5); return Math.abs((last.weight-first.weight)/weeks)}
 function adjustmentText(c,req,actual){if(c.goalType==='Maintain')return 'Maintain phase: keep calories steady and adjust only if weekly average moves more than 1%.'; if(actual===0)return `Need ${req} lb/week pace. Add more check-ins to calculate actual trend.`; if(actual<req*.75)return 'Behind pace: reduce calories by 150–250 or add 2 cardio sessions this week.'; if(actual>req*1.35)return 'Moving fast: monitor energy/digestion. Consider adding 100–150 calories if performance drops.'; return 'On track: hold calories, keep adherence high, and reassess next check-in.'}
-function renderMeals(){let c=client(); if(!c.meals)c.meals=[]; let html=''; for(let m=1;m<=6;m++){html+=`<div class="meal"><h3>Meal ${m}</h3>`; for(let s=1;s<=4;s++){let idx=(m-1)*4+s-1; let r=c.meals[idx]||{category:'Blank',food:'Zero',amount:0,unit:'g'}; let cats=[...new Set(foodDB.map(f=>f[0]))]; let foods=foodDB.filter(f=>f[0]===r.category); let f=foodDB.find(x=>x[1]===r.food)||foodDB[0]; let grams=gramAmount(r.amount,r.unit,f[2]); let mult=grams/(f[2]||100); html+=`<div class="food-row" data-idx="${idx}"><select class="cat">${cats.map(x=>`<option ${x===r.category?'selected':''}>${x}</option>`).join('')}</select><select class="food">${foods.map(x=>`<option ${x[1]===r.food?'selected':''}>${x[1]}</option>`).join('')}</select><input class="amt" type="number" step="0.1" value="${r.amount}"><select class="unit">${['g','oz','serving','tbsp','tsp','cup'].map(u=>`<option ${u===r.unit?'selected':''}>${u}</option>`).join('')}</select><span>${Math.round(grams)}g</span><span>${Math.round(f[3]*mult)} cal</span><span>${Math.round(f[4]*mult)} P</span><span>${Math.round(f[5]*mult)} C / ${Math.round(f[6]*mult)} F</span></div>`} html+='</div>'} $('mealPlanner').innerHTML=html; document.querySelectorAll('.food-row').forEach(row=>row.addEventListener('change',mealChange));}
-function mealChange(e){let row=e.currentTarget, idx=+row.dataset.idx, c=client(); let cat=row.querySelector('.cat').value; let foodSel=row.querySelector('.food'); if(e.target.className==='cat'){foodSel.innerHTML=foodDB.filter(f=>f[0]===cat).map(f=>`<option>${f[1]}</option>`).join('')} c.meals[idx]={category:cat,food:foodSel.value,amount:row.querySelector('.amt').value,unit:row.querySelector('.unit').value}; save(); renderAll()}
+function normalizeMeals(c){
+  c.meals=c.meals||[];
+  // Convert old positional meal rows into meal-based rows once, if needed.
+  if(c.meals.length && c.meals.some(r=>r && r.meal===undefined)){
+    c.meals=c.meals.map((r,i)=>({...(r||{}), meal:Math.floor(i/4)+1})).filter(r=>r.food||r.category||r.amount);
+  }
+}
+function getMealRows(c,m){normalizeMeals(c); return c.meals.filter(r=>+r.meal===m)}
+function blankMealRow(m){return {meal:m,category:'Blank',food:'Zero',amount:0,unit:'g'}}
+function rowMacroHTML(r){
+  let f=foodDB.find(x=>x[1]===r.food)||foodDB[0];
+  let grams=gramAmount(r.amount,r.unit,f[2]);
+  let mult=grams/(f[2]||100);
+  return `<span>${Math.round(grams)}g</span><span>${Math.round(f[3]*mult)} cal</span><span>${Math.round(f[4]*mult)} P</span><span>${Math.round(f[5]*mult)} C / ${Math.round(f[6]*mult)} F</span>`;
+}
+function mealTotal(c,m){
+  let total={cal:0,protein:0,carbs:0,fat:0};
+  getMealRows(c,m).forEach(r=>{
+    let f=foodDB.find(x=>x[1]===r.food)||foodDB[0];
+    let grams=gramAmount(r.amount,r.unit,f[2]);
+    let mult=grams/(f[2]||100);
+    total.cal+=f[3]*mult; total.protein+=f[4]*mult; total.carbs+=f[5]*mult; total.fat+=f[6]*mult;
+  });
+  return Object.fromEntries(Object.entries(total).map(([k,v])=>[k,Math.round(v)]));
+}
+function renderMeals(){
+  let c=client(); normalizeMeals(c);
+  let cats=[...new Set(foodDB.map(f=>f[0]))];
+  let html='';
+  for(let m=1;m<=6;m++){
+    let rows=getMealRows(c,m);
+    while(rows.length<2){let nr=blankMealRow(m); c.meals.push(nr); rows.push(nr)}
+    let mt=mealTotal(c,m);
+    html+=`<div class="meal" data-meal="${m}"><div class="meal-head"><h3>Meal ${m}</h3><button class="add-food primary" type="button">+ Add Food</button></div>`;
+    rows.slice(0,7).forEach((r,localIdx)=>{
+      let globalIdx=c.meals.indexOf(r);
+      let foods=foodDB.filter(f=>f[0]===r.category);
+      html+=`<div class="food-row" data-idx="${globalIdx}"><select class="cat">${cats.map(x=>`<option ${x===r.category?'selected':''}>${x}</option>`).join('')}</select><select class="food">${foods.map(x=>`<option ${x[1]===r.food?'selected':''}>${x[1]}</option>`).join('')}</select><input class="amt" type="number" step="0.1" value="${r.amount}"><select class="unit">${['g','oz','serving','tbsp','tsp','cup'].map(u=>`<option ${u===r.unit?'selected':''}>${u}</option>`).join('')}</select>${rowMacroHTML(r)}<button class="remove-food danger" type="button">×</button></div>`;
+    });
+    html+=`<div class="meal-total"><b>Meal ${m} Total:</b> ${mt.cal} cal | P ${mt.protein}g | C ${mt.carbs}g | F ${mt.fat}g <span>${rows.length}/7 foods</span></div></div>`;
+  }
+  $('mealPlanner').innerHTML=html;
+  save();
+  document.querySelectorAll('.food-row').forEach(row=>{
+    row.querySelectorAll('select,input').forEach(el=>el.addEventListener('input',mealChange));
+    row.querySelectorAll('select,input').forEach(el=>el.addEventListener('change',mealChange));
+    row.querySelector('.remove-food').addEventListener('click',removeFoodRow);
+  });
+  document.querySelectorAll('.add-food').forEach(btn=>btn.addEventListener('click',addFoodRow));
+}
+function mealChange(e){
+  let row=e.currentTarget.closest('.food-row'), idx=+row.dataset.idx, c=client(); normalizeMeals(c);
+  let cat=row.querySelector('.cat').value; let foodSel=row.querySelector('.food');
+  if(e.target.classList.contains('cat')){
+    let options=foodDB.filter(f=>f[0]===cat);
+    foodSel.innerHTML=options.map(f=>`<option>${f[1]}</option>`).join('');
+    foodSel.value=options[0]?.[1]||'Zero';
+  }
+  c.meals[idx]={...(c.meals[idx]||{}),meal:+row.closest('.meal').dataset.meal,category:cat,food:foodSel.value,amount:+row.querySelector('.amt').value||0,unit:row.querySelector('.unit').value};
+  save(); renderAll();
+}
+function addFoodRow(e){
+  let c=client(); normalizeMeals(c); let m=+e.currentTarget.closest('.meal').dataset.meal;
+  if(getMealRows(c,m).length>=7){alert('This meal already has 7 food slots.'); return;}
+  c.meals.push(blankMealRow(m)); save(); renderAll();
+}
+function removeFoodRow(e){
+  let c=client(); normalizeMeals(c); let row=e.currentTarget.closest('.food-row'), idx=+row.dataset.idx, m=+row.closest('.meal').dataset.meal;
+  if(getMealRows(c,m).length<=1){alert('Keep at least one food row in each meal.'); return;}
+  c.meals.splice(idx,1); save(); renderAll();
+}
 function renderCheckins(){let c=client(); $('checkinRows').innerHTML=(c.checkins||[]).map((r,i)=>`<tr><td>${r.date}</td><td>${r.weight}</td><td>${r.steps||''}</td><td>${r.adherence||''}%</td><td><button onclick="delCheck(${i})" class="danger">x</button></td></tr>`).join(''); let arr=(c.checkins||[]), weights=arr.map(x=>+x.weight); let min=Math.min(...weights,0), max=Math.max(...weights,1); $('trendChart').innerHTML=arr.map(x=>`<div style="height:${20+((x.weight-min)/(max-min||1))*150}px"><small>${x.weight}</small></div>`).join('')}
 window.delCheck=i=>{client().checkins.splice(i,1);save();renderAll()}
 function renderBusiness(){let b=state.biz; ['payment','software','website','marketing','misc'].forEach(id=>$(id).value=b[id]); let rev=state.clients.length*(+b.payment||0), cost=(+b.software||0)+(+b.website||0)+(+b.marketing||0)+(+b.misc||0); $('bizClients').textContent=state.clients.length; $('revenue').textContent='$'+rev; $('profit').textContent='$'+(rev-cost); $('yearly').textContent='$'+((rev-cost)*12)}
